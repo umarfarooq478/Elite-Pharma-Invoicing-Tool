@@ -203,13 +203,11 @@
     table.items td.center {
       text-align: center;
     }
-    table.items col.sno { width: 7%; }
-    table.items col.product { width: 28%; }
-    table.items col.batch { width: 14%; }
-    table.items col.expiry { width: 14%; }
-    table.items col.qty { width: 11%; }
-    table.items col.rate { width: 13%; }
-    table.items col.total { width: 13%; }
+    table.items col.sno { width: 10%; }
+    table.items col.product { width: 42%; }
+    table.items col.qty { width: 16%; }
+    table.items col.rate { width: 16%; }
+    table.items col.total { width: 16%; }
 
     table.items tbody td {
       padding: 6px 8px;
@@ -340,11 +338,42 @@
       padding-top: 36px;
     }
 
-    /* Print */
+    #pdf-export-root {
+      position: fixed;
+      left: -10000px;
+      top: 0;
+      width: 210mm;
+      background: #fff;
+      pointer-events: none;
+      z-index: -1;
+    }
+    #pdf-export-root .page {
+      width: 210mm;
+      height: 297mm;
+      min-height: 297mm;
+      box-shadow: none;
+      margin: 0;
+    }
+    #pdf-export-root .row-actions { display: none !important; }
+    #pdf-export-root .field-text {
+      display: block;
+      font: inherit;
+      color: inherit;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #pdf-export-root .field-text.right,
+    #pdf-export-root .field-text.tot-val {
+      text-align: right;
+    }
+    #pdf-export-root .field-text.bold { font-weight: 700; }
+
     @page {
       size: A4 portrait;
       margin: 0;
     }
+
     @media print {
       body { background: #fff; }
       .toolbar, .row-actions { display: none !important; }
@@ -378,7 +407,7 @@
 <body>
   <div class="toolbar">
     <button type="button" class="primary" id="btnAdd">+ Add Product</button>
-    <button type="button" id="btnPrint">Print / Save PDF</button>
+    <button type="button" id="btnSave">Save</button>
     <button type="button" class="danger" id="btnClear">Clear All</button>
     <span class="hint">Edit fields on the page · totals update automatically</span>
   </div>
@@ -391,7 +420,7 @@
          
           <div class="brand-name">Elite Pharma Multan</div>
         </div>
-        <div class="doc-title">QUOTATION ONLY</div>
+        
       </header>
 
       <!-- Client / invoice meta -->
@@ -418,8 +447,6 @@
           <colgroup>
             <col class="sno" />
             <col class="product" />
-            <col class="batch" />
-            <col class="expiry" />
             <col class="qty" />
             <col class="rate" />
             <col class="total" />
@@ -428,8 +455,6 @@
             <tr>
               <th class="center">S. No</th>
               <th>Product</th>
-              <th>Batch No.</th>
-              <th>Expiry</th>
               <th class="num">Quantity</th>
               <th class="num">Rate</th>
               <th class="num">Total</th>
@@ -474,21 +499,19 @@
         </div>
         <div class="sig">
           <div class="sig-line"></div>
-          <div class="sig-label">Techno Care</div>
+          <div class="sig-label">Elite Pharma Multan</div>
         </div>
       </div>
 
       <footer class="address">
-        Off # 18, 1st Floor, United Center, Shamsabad, Murree Road, Rawalpindi.
+        139 C Block Model Town Multan, Pakistan
       </footer>
     </article>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const SAMPLE = [
-
-    ];
-
     const body = document.getElementById("itemsBody");
     const discountEl = document.getElementById("discount");
 
@@ -503,7 +526,6 @@
       return Number.isFinite(n) ? n : 0;
     }
 
-    /* —— Number to English words (for Rupees line) —— */
     function numberToWords(num) {
       num = Math.round(Math.abs(num));
       if (num === 0) return "Zero";
@@ -531,7 +553,6 @@
         return s;
       }
 
-      // Indian / Pakistani grouping: crore / lakh / thousand
       const crore = Math.floor(num / 10000000);
       num %= 10000000;
       const lakh = Math.floor(num / 100000);
@@ -552,8 +573,6 @@
       tr.innerHTML = `
         <td class="center sno-cell"></td>
         <td><input class="field" data-f="product" type="text" placeholder="Product name" /></td>
-        <td><input class="field" data-f="batch" type="text" placeholder="Batch" /></td>
-        <td><input class="field" data-f="expiry" type="text" placeholder="e.g. 21-May-28" /></td>
         <td class="num"><input class="field right" data-f="qty" type="text" inputmode="decimal" placeholder="0" /></td>
         <td class="num"><input class="field right" data-f="rate" type="text" inputmode="decimal" placeholder="0" /></td>
         <td class="num"><span class="line-total"></span>
@@ -561,8 +580,6 @@
         </td>
       `;
       tr.querySelector('[data-f="product"]').value = data.product || "";
-      tr.querySelector('[data-f="batch"]').value = data.batch || "";
-      tr.querySelector('[data-f="expiry"]').value = data.expiry || "";
       tr.querySelector('[data-f="qty"]').value = data.qty != null ? formatNum(data.qty) : "";
       tr.querySelector('[data-f="rate"]').value = data.rate != null ? formatNum(data.rate) : "";
 
@@ -622,9 +639,73 @@
       recalculate();
     }
 
-    function loadSample() {
-      body.innerHTML = "";
-      SAMPLE.forEach((row) => addRow(row));
+    function prepareCloneForPdf(source) {
+      const clone = source.cloneNode(true);
+      clone.querySelectorAll(".row-actions").forEach((el) => el.remove());
+
+      clone.querySelectorAll("input, textarea").forEach((el) => {
+        const span = document.createElement("span");
+        span.className = "field-text " + el.className;
+        span.textContent = el.value || "";
+        el.replaceWith(span);
+      });
+
+      return clone;
+    }
+
+    async function savePdf() {
+      const btn = document.getElementById("btnSave");
+      const source = document.getElementById("quotation");
+      const inv = (document.getElementById("invoiceNo").value || "quotation").trim();
+      const filename = `Quotation-${inv}.pdf`;
+
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+
+      const root = document.createElement("div");
+      root.id = "pdf-export-root";
+      const clone = prepareCloneForPdf(source);
+      clone.classList.add("page");
+      root.appendChild(clone);
+      document.body.appendChild(root);
+
+      // Force layout at exact A4 size before capture
+      void clone.offsetHeight;
+
+      try {
+        const canvas = await html2canvas(clone, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: clone.scrollWidth,
+          windowHeight: clone.scrollHeight,
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
+
+        const pageW = 210;
+        const pageH = 297;
+        const margin = 10; // mm on all sides
+        const contentW = pageW - margin * 2;
+        const contentH = pageH - margin * 2;
+        const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
+        pdf.addImage(imgData, "JPEG", margin, margin, contentW, contentH, undefined, "FAST");
+        pdf.save(filename);
+      } finally {
+        root.remove();
+        btn.disabled = false;
+        btn.textContent = "Save";
+      }
     }
 
     document.getElementById("btnAdd").addEventListener("click", () => {
@@ -633,7 +714,14 @@
       if (last) last.focus();
     });
 
-    document.getElementById("btnPrint").addEventListener("click", () => window.print());
+    document.getElementById("btnSave").addEventListener("click", () => {
+      savePdf().catch((err) => {
+        console.error(err);
+        alert("Could not save PDF. Please try again.");
+        document.getElementById("btnSave").disabled = false;
+        document.getElementById("btnSave").textContent = "Save";
+      });
+    });
 
     document.getElementById("btnClear").addEventListener("click", () => {
       document.getElementById("client").value = "";
@@ -651,7 +739,6 @@
       recalculate();
     });
 
-    // Auto-grow client textarea
     const clientEl = document.getElementById("client");
     function growClient() {
       clientEl.style.height = "auto";
@@ -659,7 +746,7 @@
     }
     clientEl.addEventListener("input", growClient);
 
-    loadSample();
+    addRow({});
     growClient();
   </script>
 </body>
