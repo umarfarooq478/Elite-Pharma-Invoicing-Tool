@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elite Pharma Multan — Quotation</title>
+  <style>
+    :root {
+      --ink: #111;
+      --border: #111;
+      --muted: #444;
+      --teal: #1a9aa8;
+      --page: #e8e8e8;
+      --paper: #fff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--page);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* —— Toolbar (hidden when printing) —— */
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1rem;
+      background: #1a1a1a;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .toolbar button {
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 4px;
+      padding: 0.5rem 0.9rem;
+      cursor: pointer;
+      background: #fff;
+      color: #111;
+    }
+    .toolbar button.primary { background: var(--teal); color: #fff; }
+    .toolbar button.danger { background: #c0392b; color: #fff; }
+    .toolbar button:hover { filter: brightness(1.08); }
+    .toolbar .hint {
+      font-size: 0.75rem;
+      opacity: 0.75;
+      margin-left: 0.5rem;
+    }
+
+    .workspace {
+      display: flex;
+      justify-content: center;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    /* —— A4 page —— */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: var(--paper);
+      padding: 14mm 14mm 12mm;
+      box-shadow: 0 4px 24px rgba(0,0,0,.18);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .doc-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      padding-top: 6px;
+    }
+
+    /* Meta boxes */
+    .meta {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 0;
+      border: 1.5px solid var(--border);
+      margin-bottom: 14px;
+    }
+    .meta-client {
+      border-right: 1.5px solid var(--border);
+      padding: 10px 12px;
+      min-height: 58px;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .meta-client .prefix {
+      font-weight: 700;
+      white-space: nowrap;
+      padding-top: 4px;
+    }
+    .meta-details {
+      display: flex;
+      flex-direction: column;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      gap: 8px;
+      flex: 1;
+    }
+    .meta-row + .meta-row {
+      border-top: 1.5px solid var(--border);
+    }
+    .meta-row label {
+      font-weight: 400;
+      white-space: nowrap;
+    }
+    .meta-row .value {
+      font-weight: 700;
+      text-align: right;
+      min-width: 4rem;
+    }
+
+    /* Inputs that look like print text */
+    .field {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: none;
+      outline: none;
+      width: 100%;
+      padding: 2px 0;
+    }
+    .field:focus {
+      background: #f0fafb;
+      box-shadow: inset 0 -1.5px 0 var(--teal);
+    }
+    .field.bold { font-weight: 700; }
+    .field.right { text-align: right; }
+    textarea.field {
+      resize: none;
+      line-height: 1.35;
+      overflow: hidden;
+    }
+
+    /* Product table */
+    .table-wrap {
+      border: 1.5px solid var(--border);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    table.items thead th {
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 8px;
+      border-bottom: 1.5px solid var(--border);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    table.items th.num,
+    table.items td.num {
+      text-align: right;
+    }
+    table.items th.center,
+    table.items td.center {
+      text-align: center;
+    }
+    table.items col.sno { width: 7%; }
+    table.items col.product { width: 28%; }
+    table.items col.batch { width: 14%; }
+    table.items col.expiry { width: 14%; }
+    table.items col.qty { width: 11%; }
+    table.items col.rate { width: 13%; }
+    table.items col.total { width: 13%; }
+
+    table.items tbody td {
+      padding: 6px 8px;
+      vertical-align: middle;
+      font-size: 14px;
+      border: none;
+    }
+    table.items tbody tr {
+      position: relative;
+    }
+    table.items tbody tr:hover .row-actions {
+      opacity: 1;
+    }
+    .row-actions {
+      position: absolute;
+      right: -28px;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .row-actions button {
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 50%;
+      background: #c0392b;
+      color: #fff;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .table-body-fill {
+      flex: 1;
+      min-height: 180px;
+    }
+
+    /* Summary */
+    .summary {
+      border-top: 1.5px solid var(--border);
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      min-height: 110px;
+    }
+    .summary-left {
+      border-right: 1.5px solid var(--border);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .summary-line {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .summary-line .lbl {
+      font-weight: 700;
+      white-space: nowrap;
+      min-width: 5.5rem;
+    }
+    .summary-line .words {
+      font-weight: 400;
+      line-height: 1.35;
+      flex: 1;
+    }
+    .summary-right {
+      padding: 8px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 4px;
+    }
+    .tot-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      padding: 2px 0;
+    }
+    .tot-row .tot-label { font-weight: 400; }
+    .tot-row .tot-val {
+      font-weight: 700;
+      text-align: right;
+      min-width: 5.5rem;
+    }
+    .tot-row.discount {
+      border-bottom: 1.5px solid var(--border);
+      padding-bottom: 6px;
+      margin-bottom: 4px;
+    }
+    .tot-row.discount .tot-val { font-weight: 400; }
+    .tot-row.net .tot-label,
+    .tot-row.net .tot-val {
+      font-weight: 700;
+    }
+
+    /* Footer */
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      margin-top: 48px;
+      padding: 0 20px;
+    }
+    .sig {
+      text-align: center;
+    }
+    .sig-line {
+      border-top: 1.5px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .sig-label {
+      font-style: italic;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 15px;
+    }
+    .address {
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      margin-top: auto;
+      padding-top: 36px;
+    }
+
+    /* Print */
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    @media print {
+      body { background: #fff; }
+      .toolbar, .row-actions { display: none !important; }
+      .workspace { padding: 0; }
+      .page {
+        box-shadow: none;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 12mm 14mm 10mm;
+      }
+      .field:focus {
+        background: transparent;
+        box-shadow: none;
+      }
+      .table-body-fill { min-height: 220px; }
+    }
+
+    @media screen and (max-width: 900px) {
+      .workspace { padding: 1rem 0.5rem 2rem; }
+      .page {
+        width: 100%;
+        min-height: auto;
+        padding: 12px;
+      }
+      .row-actions { right: 2px; opacity: 1; }
+      .doc-title { font-size: 18px; }
+      .brand-name { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button type="button" class="primary" id="btnAdd">+ Add Product</button>
+    <button type="button" id="btnPrint">Print / Save PDF</button>
+    <button type="button" class="danger" id="btnClear">Clear All</button>
+    <span class="hint">Edit fields on the page · totals update automatically</span>
+  </div>
+
+  <div class="workspace">
+    <article class="page" id="quotation">
+      <!-- Header -->
+      <header class="header">
+        <div class="brand">
+         
+          <div class="brand-name">Elite Pharma Multan</div>
+        </div>
+        <div class="doc-title">QUOTATION ONLY</div>
+      </header>
+
+      <!-- Client / invoice meta -->
+      <section class="meta">
+        <div class="meta-client">
+          <span class="prefix">M/s:</span>
+          <textarea class="field bold" id="client" rows="2" placeholder="Client name"></textarea>
+        </div>
+        <div class="meta-details">
+          <div class="meta-row">
+            <label for="invoiceNo">Sale Invoice No.:</label>
+            <input class="field bold right value" id="invoiceNo" type="text"  />
+          </div>
+          <div class="meta-row">
+            <label for="invoiceDate">Date:</label>
+            <input class="field bold right value" id="invoiceDate" type="text"  />
+          </div>
+        </div>
+      </section>
+
+      <!-- Line items -->
+      <section class="table-wrap">
+        <table class="items">
+          <colgroup>
+            <col class="sno" />
+            <col class="product" />
+            <col class="batch" />
+            <col class="expiry" />
+            <col class="qty" />
+            <col class="rate" />
+            <col class="total" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="center">S. No</th>
+              <th>Product</th>
+              <th>Batch No.</th>
+              <th>Expiry</th>
+              <th class="num">Quantity</th>
+              <th class="num">Rate</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+        <div class="table-body-fill" aria-hidden="true"></div>
+
+        <div class="summary">
+          <div class="summary-left">
+            <div class="summary-line">
+              <span class="lbl">Rupees:</span>
+              <span class="words" id="amountWords"></span>
+            </div>
+            <div class="summary-line">
+              <span class="lbl">Description:</span>
+              <input class="field" id="description" type="text" placeholder="" value="" />
+            </div>
+          </div>
+          <div class="summary-right">
+            <div class="tot-row">
+              <span class="tot-label">Total</span>
+              <span class="tot-val" id="grandTotal"></span>
+            </div>
+            <div class="tot-row discount">
+              <span class="tot-label">Discount</span>
+              <input class="field right tot-val" id="discount" type="text" value="0" inputmode="decimal" />
+            </div>
+            <div class="tot-row net">
+              <span class="tot-label">Net Total</span>
+              <span class="tot-val" id="netTotal"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="signatures">
+        <div class="sig">
+          <div class="sig-line"></div>
+          <div class="sig-label">Receiver's Sig.</div>
+        </div>
+        <div class="sig">
+          <div class="sig-line"></div>
+          <div class="sig-label">Techno Care</div>
+        </div>
+      </div>
+
+      <footer class="address">
+        Off # 18, 1st Floor, United Center, Shamsabad, Murree Road, Rawalpindi.
+      </footer>
+    </article>
+  </div>
+
+  <script>
+    const SAMPLE = [
+
+    ];
+
+    const body = document.getElementById("itemsBody");
+    const discountEl = document.getElementById("discount");
+
+    function formatNum(n) {
+      if (!Number.isFinite(n)) return "";
+      return Math.round(n).toLocaleString("en-US");
+    }
+
+    function parseNum(str) {
+      if (str == null || str === "") return 0;
+      const n = Number(String(str).replace(/,/g, "").trim());
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    /* —— Number to English words (for Rupees line) —— */
+    function numberToWords(num) {
+      num = Math.round(Math.abs(num));
+      if (num === 0) return "Zero";
+
+      const ones = [
+        "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+        "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+        "Seventeen", "Eighteen", "Nineteen"
+      ];
+      const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+      function underThousand(n) {
+        let s = "";
+        if (n >= 100) {
+          s += ones[Math.floor(n / 100)] + " Hundred";
+          n %= 100;
+          if (n) s += " ";
+        }
+        if (n >= 20) {
+          s += tens[Math.floor(n / 10)];
+          if (n % 10) s += " " + ones[n % 10];
+        } else if (n > 0) {
+          s += ones[n];
+        }
+        return s;
+      }
+
+      // Indian / Pakistani grouping: crore / lakh / thousand
+      const crore = Math.floor(num / 10000000);
+      num %= 10000000;
+      const lakh = Math.floor(num / 100000);
+      num %= 100000;
+      const thousand = Math.floor(num / 1000);
+      num %= 1000;
+
+      let parts = [];
+      if (crore) parts.push(underThousand(crore) + " Crore");
+      if (lakh) parts.push(underThousand(lakh) + " Lakh");
+      if (thousand) parts.push(underThousand(thousand) + " Thousand");
+      if (num) parts.push(underThousand(num));
+      return parts.join(" ");
+    }
+
+    function createRow(data = {}) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="center sno-cell"></td>
+        <td><input class="field" data-f="product" type="text" placeholder="Product name" /></td>
+        <td><input class="field" data-f="batch" type="text" placeholder="Batch" /></td>
+        <td><input class="field" data-f="expiry" type="text" placeholder="e.g. 21-May-28" /></td>
+        <td class="num"><input class="field right" data-f="qty" type="text" inputmode="decimal" placeholder="0" /></td>
+        <td class="num"><input class="field right" data-f="rate" type="text" inputmode="decimal" placeholder="0" /></td>
+        <td class="num"><span class="line-total"></span>
+          <div class="row-actions"><button type="button" title="Remove row" aria-label="Remove row">&times;</button></div>
+        </td>
+      `;
+      tr.querySelector('[data-f="product"]').value = data.product || "";
+      tr.querySelector('[data-f="batch"]').value = data.batch || "";
+      tr.querySelector('[data-f="expiry"]').value = data.expiry || "";
+      tr.querySelector('[data-f="qty"]').value = data.qty != null ? formatNum(data.qty) : "";
+      tr.querySelector('[data-f="rate"]').value = data.rate != null ? formatNum(data.rate) : "";
+
+      tr.querySelector(".row-actions button").addEventListener("click", () => {
+        if (body.querySelectorAll("tr").length <= 1) {
+          tr.querySelectorAll("input").forEach((i) => (i.value = ""));
+          recalculate();
+          return;
+        }
+        tr.remove();
+        renumber();
+        recalculate();
+      });
+
+      tr.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("input", () => recalculate());
+        input.addEventListener("blur", (e) => {
+          const f = e.target.dataset.f;
+          if (f === "qty" || f === "rate") {
+            const n = parseNum(e.target.value);
+            e.target.value = e.target.value.trim() === "" ? "" : formatNum(n);
+          }
+        });
+      });
+
+      return tr;
+    }
+
+    function renumber() {
+      body.querySelectorAll("tr").forEach((tr, i) => {
+        tr.querySelector(".sno-cell").textContent = String(i + 1);
+      });
+    }
+
+    function recalculate() {
+      let sum = 0;
+      body.querySelectorAll("tr").forEach((tr) => {
+        const qty = parseNum(tr.querySelector('[data-f="qty"]').value);
+        const rate = parseNum(tr.querySelector('[data-f="rate"]').value);
+        const total = qty * rate;
+        sum += total;
+        tr.querySelector(".line-total").textContent =
+          qty || rate ? formatNum(total) : "";
+      });
+
+      const discount = parseNum(discountEl.value);
+      const net = Math.max(0, sum - discount);
+
+      document.getElementById("grandTotal").textContent = formatNum(sum);
+      document.getElementById("netTotal").textContent = formatNum(net);
+      document.getElementById("amountWords").textContent = numberToWords(net);
+    }
+
+    function addRow(data) {
+      body.appendChild(createRow(data));
+      renumber();
+      recalculate();
+    }
+
+    function loadSample() {
+      body.innerHTML = "";
+      SAMPLE.forEach((row) => addRow(row));
+    }
+
+    document.getElementById("btnAdd").addEventListener("click", () => {
+      addRow({});
+      const last = body.querySelector("tr:last-child [data-f='product']");
+      if (last) last.focus();
+    });
+
+    document.getElementById("btnPrint").addEventListener("click", () => window.print());
+
+    document.getElementById("btnClear").addEventListener("click", () => {
+      document.getElementById("client").value = "";
+      document.getElementById("invoiceNo").value = "";
+      document.getElementById("invoiceDate").value = "";
+      document.getElementById("description").value = "";
+      discountEl.value = "0";
+      body.innerHTML = "";
+      addRow({});
+    });
+
+    discountEl.addEventListener("input", recalculate);
+    discountEl.addEventListener("blur", () => {
+      discountEl.value = formatNum(parseNum(discountEl.value));
+      recalculate();
+    });
+
+    // Auto-grow client textarea
+    const clientEl = document.getElementById("client");
+    function growClient() {
+      clientEl.style.height = "auto";
+      clientEl.style.height = clientEl.scrollHeight + "px";
+    }
+    clientEl.addEventListener("input", growClient);
+
+    loadSample();
+    growClient();
+  </script>
+</body>
+</html>
